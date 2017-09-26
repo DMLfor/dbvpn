@@ -48,7 +48,7 @@ void VpnServer::get_local_ip()
     localIp_ = IPv4Address(std::string(ip));
 }
 
-void VpnServer::create_tun(const char *tunIP)
+void VpnServer::create_tun()
 {
     struct ifreq ifr;
 
@@ -215,39 +215,30 @@ void VpnServer::DNAT(const Tins::IP &IpPack)
     IP oneIpPack = IpPack;
     Quintet quintet;
     get_quintet(IpPack, quintet);
-    //printQuintet(quintet);
     IpPort srcIpPort = std::make_pair(quintet.srcIp, quintet.srcPort);
-    //puts("-1");
     if(simpleNat_.count(srcIpPort) == 0)
     {
         return ;
     }
-    //puts("0");
     IpPort dstIpPort = simpleNat_[srcIpPort];
     struct sockaddr_in tmpAddr = simpleSockaddr_[dstIpPort];
 
     oneIpPack.dst_addr(dstIpPort.first);
-    //puts("1");
     if(quintet.protocol == IPPROTO_TCP)
     {
-      //  puts("2");
         TCP *oneTcp = oneIpPack.find_pdu<TCP>();
         oneTcp->dport(dstIpPort.second);
     }
     if(quintet.protocol == IPPROTO_UDP)
     {
-        //puts("2");
         UDP *oneUdp = oneIpPack.find_pdu<UDP>();
         oneUdp->dport(dstIpPort.second);
     }
-    //puts("3");
-    //std::cout << "fuck" << std::endl;
     std::vector<uint8_t> serV = oneIpPack.serialize();
 
     for (int i = 0; i < serV.size(); i++)
         buf[i] = serV[i];
     get_quintet(oneIpPack, quintet);
-   // printQuintet(quintet);
     socklen_t sockLen = sizeof(struct sockaddr_in);
     sendto(sockFd_, buf, serV.size(), 0,(struct sockaddr *)&tmpAddr, sockLen);
 

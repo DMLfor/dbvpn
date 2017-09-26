@@ -52,7 +52,7 @@ private:
 
     void create_sock(const char *port);
 
-    void create_tun(const char *tunIp);
+    void create_tun();
 
     void create_epoll();
 
