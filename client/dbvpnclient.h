@@ -20,6 +20,7 @@ private:
     int err_;
     std::string tunName_;
     int sockFd_;
+    int vpnPort_;
     int epFd_;
     struct sockaddr_in vpnAddr_;
 
@@ -44,14 +45,9 @@ public:
         return tunName_;
     }
 
-    bool isErr() const
-    {
-        return err_ == -1;
-    }
-
-
 };
 
 
 
 #endif //DBVPN_DBVPNCLIENT_H
+

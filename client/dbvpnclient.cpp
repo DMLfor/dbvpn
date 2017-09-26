@@ -22,6 +22,9 @@
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
 #include <iostream>
+#include <tins/tins.h>
+
+using namespace Tins;
 
 TunDev::TunDev(const char *vpnIp, const char *vpnPort)
 {
@@ -33,6 +36,7 @@ TunDev::TunDev(const char *vpnIp, const char *vpnPort)
     vpnAddr_.sin_family = AF_INET;
     vpnAddr_.sin_port = htons(atoi(vpnPort));
     inet_pton(AF_INET, vpnIp, &vpnAddr_.sin_addr);
+
 }
 
 void TunDev::create_tun()
@@ -54,8 +58,9 @@ void TunDev::create_tun()
     tunName_ = std::string(ifr.ifr_name);
 
     std::string cmd = "";
-    cmd += "ifconfig " + tunName_ + " up";
+    cmd += "ifconfig " + tunName_ + " mtu 1300" + " up";
     system(cmd.c_str());
+    system("route add default dev tun0");
  }
 
 void TunDev::create_sock(const char *port)
@@ -102,7 +107,7 @@ void TunDev::epoll_add(int fd, int status)
 }
 void TunDev::start()
 {
-    char buf[BUFF_SIZE];
+    uint8_t buf[BUFF_SIZE];
     struct sockaddr tmpAddr;
     socklen_t sockLen = sizeof(struct sockaddr);
     while(1)
@@ -116,7 +121,6 @@ void TunDev::start()
                 int nread =  read(tunFd_, buf, sizeof(buf));
                 const void *peek = buf;
                 const struct iphdr *iphdr = static_cast<const struct iphdr *>(peek);
-                std:: cout<< "read from tun " << nread << " bytes" <<std::endl;
                 if(iphdr->version == 4)
                 {
                     sendto(sockFd_, buf, nread, 0, (struct sockaddr *)&vpnAddr_, sockLen);
