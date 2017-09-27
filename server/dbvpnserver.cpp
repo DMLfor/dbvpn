@@ -116,6 +116,7 @@ void VpnServer::epoll_add(int fd, int status)
 void VpnServer::start()
 {
     std::cout << "The " << getTunNanme() << " is running." << std::endl;
+    std::cout << "Port range is " << portRange_.first << "-" << portRange_.second << std::endl;
     time_t nowTime = time(NULL);
 
     for(int i = portRange_.first+1; i<portRange_.second; i++)
@@ -165,22 +166,34 @@ void VpnServer::start()
     }
 }
 
-void VpnServer::modPort(Tins::IP &pack, uint16_t value)
+void VpnServer::modPort(Tins::IP &pack, uint16_t value, int type)
 {
-    if(pack.protocol() == IPPROTO_TCP)
+    if(pack.protocol() == IPPROTO_TCP && type == 1)
     {
         TCP *oneTcp = pack.find_pdu<TCP>();
         oneTcp->dport(value);
     }
-    if(pack.protocol() == IPPROTO_UDP)
+    if(pack.protocol() == IPPROTO_UDP && type == 1)
     {
         UDP *oneUdp = pack.find_pdu<UDP>();
         oneUdp->dport(value);
     }
+    if(pack.protocol() == IPPROTO_TCP && type == 0)
+    {
+        TCP *oneTcp = pack.find_pdu<TCP>();
+        oneTcp->sport(value);
+    }
+    if(pack.protocol() == IPPROTO_UDP && type == 0)
+    {
+        UDP *oneUdp = pack.find_pdu<UDP>();
+        oneUdp->sport(value);
+    }
+
 }
 void VpnServer::get_quintet(const Tins::IP &IpPack, Quintet &quintet)
 {
     quintet.dstIP = IpPack.dst_addr(), quintet.srcIp = IpPack.src_addr();
+    quintet.protocol = IpPack.protocol();
     if(IpPack.protocol() == IPPROTO_UDP)
     {
         const UDP *oneUdp = IpPack.find_pdu<UDP>();
@@ -219,22 +232,42 @@ void VpnServer::SNAT(const Tins::IP &IpPack, const struct sockaddr_in &clientAdd
     IpPort dstIpPort = std::make_pair(quintet.dstIP, quintet.dstPort);
     IpPort srcIpPort = std::make_pair(quintet.srcIp, quintet.srcPort);
 
-
-    simpleSockaddr_[srcIpPort] = clientAddr;
-
-    for(auto &item : portArr_)
+    //printQuintet(quintet);
+    if(addrToPort_.count(srcIpPort) == 0)
     {
-        if(nowTime - item.lastTime >= 300 || item.used == false)
+        for(auto &item : portArr_)
         {
-            item.lastTime = nowTime;
-            item.used = true;
-            srcIpPort.second = item.port;
-            modPort(oneIpPack, item.port);
-            break;
+            if(nowTime - item.lastTime >= 300 || item.used == false)
+            {
+                if(nowTime - item.lastTime >= 300)
+                {
+                    IpPort tmp = portToAddr_[item.port];
+                    addrToPort_.erase(tmp);
+                    portToAddr_.erase(item.port);
+                    simpleSockaddr_.erase(tmp);
+                }
+
+                item.lastTime = nowTime;
+                item.used = true;
+                modPort(oneIpPack, item.port, 0);
+                addrToPort_[srcIpPort] = item.port;
+                portToAddr_[item.port] = srcIpPort;
+                simpleSockaddr_[srcIpPort] = clientAddr;
+                srcIpPort.second = item.port;
+                break;
+            }
         }
     }
+    else
+    {
+        uint16_t tmp = addrToPort_[srcIpPort];
+        int seq = tmp - portRange_.first -1;
+        portArr_[seq].lastTime = nowTime;
+        modPort(oneIpPack, tmp, 0);
+    }
 
-    simpleNat_[dstIpPort] = srcIpPort;
+    get_quintet(oneIpPack, quintet);
+    //printQuintet(quintet);
     oneIpPack.src_addr(tunIp_);
     write_tun(oneIpPack);
 }
@@ -246,28 +279,17 @@ void VpnServer::DNAT(const Tins::IP &IpPack)
     Quintet quintet;
     get_quintet(IpPack, quintet);
     IpPort srcIpPort = std::make_pair(quintet.srcIp, quintet.srcPort);
-    if(simpleNat_.count(srcIpPort) == 0)
+    if(portToAddr_.count(quintet.dstPort) == 0)
     {
         return ;
     }
-    IpPort dstIpPort = simpleNat_[srcIpPort];
+    IpPort dstIpPort = portToAddr_[quintet.dstPort];
     struct sockaddr_in tmpAddr = simpleSockaddr_[dstIpPort];
 
     oneIpPack.dst_addr(dstIpPort.first);
 
-    modPort(oneIpPack, dstIpPort.second);
-    /*
-    if(quintet.protocol == IPPROTO_TCP)
-    {
-        TCP *oneTcp = oneIpPack.find_pdu<TCP>();
-        oneTcp->dport(dstIpPort.second);
-    }
-    if(quintet.protocol == IPPROTO_UDP)
-    {
-        UDP *oneUdp = oneIpPack.find_pdu<UDP>();
-        oneUdp->dport(dstIpPort.second);
-    }
-     */
+    modPort(oneIpPack, dstIpPort.second, 1);
+
     std::vector<uint8_t> serV = oneIpPack.serialize();
 
     for (int i = 0; i < serV.size(); i++)

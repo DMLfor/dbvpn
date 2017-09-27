@@ -22,7 +22,8 @@ class VpnServer
 {
 private:
     typedef std::pair<Tins::IPv4Address, uint16_t> IpPort;
-    typedef std::map<IpPort, IpPort> SNat;
+    typedef std::map<uint16_t, IpPort> PortToAddr;
+    typedef std::map<IpPort, uint16_t> AddrToPort;
     typedef std::map<IpPort, struct sockaddr_in> IpPortToSockaddr;
     typedef struct Port_t
     {
@@ -77,7 +78,8 @@ private:
     Tins::PacketSender sender_;
     Tins::IPv4Address localIp_, tunIp_;
     IpPortToSockaddr simpleSockaddr_;
-    SNat simpleNat_;
+    PortToAddr portToAddr_;
+    AddrToPort addrToPort_;
     PortArr portArr_;
     std::pair<int, int> portRange_;
 
@@ -105,11 +107,13 @@ private:
             std::cout << "TCP :";
         else if (quintet.protocol == IPPROTO_UDP)
             std::cout << "UDP :";
-        std::cout << "src : " << quintet.srcIp.to_string() << ":" << ntohs(quintet.srcPort) << " -> "
-                  << quintet.dstIP.to_string() << ":" << ntohs(quintet.dstPort) << std::endl;
+        else if(quintet.protocol == IPPROTO_ICMP)
+            std::cout <<"ICMP :";
+        std::cout << "src : " << quintet.srcIp.to_string() << ":" << quintet.srcPort << " -> "
+                  << quintet.dstIP.to_string() << ":" << quintet.dstPort << std::endl;
     }
 
-    void modPort(Tins::IP &pack, uint16_t value);
+    void modPort(Tins::IP &pack, uint16_t value, int type);
 
 public:
 
