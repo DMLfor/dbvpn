@@ -22,6 +22,7 @@ private:
     int sockFd_;
     int vpnPort_;
     int epFd_;
+    std::string vpnIp_;
     struct sockaddr_in vpnAddr_;
 
     struct epoll_event evList_[EPOLL_SIZE];

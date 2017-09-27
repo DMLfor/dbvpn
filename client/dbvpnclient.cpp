@@ -26,7 +26,8 @@
 
 using namespace Tins;
 
-TunDev::TunDev(const char *vpnIp, const char *vpnPort)
+TunDev::TunDev(const char *vpnIp, const char *vpnPort):
+    vpnIp_(vpnIp)
 {
     create_tun();
     create_sock(vpnPort);
