@@ -103,7 +103,6 @@ void VpnServer::create_epoll()
 
 }
 
-
 void VpnServer::epoll_add(int fd, int status)
 {
     struct epoll_event ev;
@@ -112,6 +111,19 @@ void VpnServer::epoll_add(int fd, int status)
     err_ = epoll_ctl(epFd_, EPOLL_CTL_ADD, fd, &ev);
 
     assert(err_ != -1);
+}
+
+bool VpnServer::get_ip_pack(const uint8_t *buf, int n, IP &pack)
+{
+   try
+   {
+		pack = RawPDU(buf, n).to<IP>();
+   }
+   catch (...)
+   {
+	   return false;
+   }
+   return true;
 }
 void VpnServer::start()
 {
@@ -134,15 +146,11 @@ void VpnServer::start()
             if(evList_[i].data.fd == tunFd_)
             {
                 int nread = read(tunFd_, buf, sizeof(buf));
-                IP oneIpPack;
-                try
-                {
-                    oneIpPack = RawPDU(buf, nread).to<IP>();
-                }
-                catch (...)
-                {
-                    continue;
-                }
+
+				IP oneIpPack;
+
+				if(get_ip_pack(buf, nread, oneIpPack) == false)
+					continue;
 
                 DNAT(oneIpPack);
             }
@@ -151,14 +159,9 @@ void VpnServer::start()
                 int nrecv =  recvfrom(sockFd_, buf, sizeof(buf), 0, (struct sockaddr *)&tmpAddr, &sockLen);
 
                 IP oneIpPack;
-                try
-                {
-                    oneIpPack = RawPDU(buf, nrecv).to<IP>();
-                }
-                catch(...)
-                {
-                    continue;
-                }
+
+				if(get_ip_pack(buf, nrecv, oneIpPack) == false)
+					continue;
 
                 SNAT(oneIpPack, tmpAddr);
             }
@@ -168,22 +171,22 @@ void VpnServer::start()
 
 void VpnServer::modPort(Tins::IP &pack, uint16_t value, int type)
 {
-    if(pack.protocol() == IPPROTO_TCP && type == 1)
+    if(pack.protocol() == IPPROTO_TCP && type == MOD_DST)
     {
         TCP *oneTcp = pack.find_pdu<TCP>();
         oneTcp->dport(value);
     }
-    if(pack.protocol() == IPPROTO_UDP && type == 1)
+    if(pack.protocol() == IPPROTO_UDP && type == MOD_DST)
     {
         UDP *oneUdp = pack.find_pdu<UDP>();
         oneUdp->dport(value);
     }
-    if(pack.protocol() == IPPROTO_TCP && type == 0)
+    if(pack.protocol() == IPPROTO_TCP && type == MOD_SRC)
     {
         TCP *oneTcp = pack.find_pdu<TCP>();
         oneTcp->sport(value);
     }
-    if(pack.protocol() == IPPROTO_UDP && type == 0)
+    if(pack.protocol() == IPPROTO_UDP && type == MOD_SRC)
     {
         UDP *oneUdp = pack.find_pdu<UDP>();
         oneUdp->sport(value);
@@ -249,7 +252,7 @@ void VpnServer::SNAT(const Tins::IP &IpPack, const struct sockaddr_in &clientAdd
 
                 item.lastTime = nowTime;
                 item.used = true;
-                modPort(oneIpPack, item.port, 0);
+                modPort(oneIpPack, item.port, MOD_DST);
                 addrToPort_[srcIpPort] = item.port;
                 portToAddr_[item.port] = srcIpPort;
                 simpleSockaddr_[srcIpPort] = clientAddr;
@@ -266,8 +269,6 @@ void VpnServer::SNAT(const Tins::IP &IpPack, const struct sockaddr_in &clientAdd
         modPort(oneIpPack, tmp, 0);
     }
 
-    get_quintet(oneIpPack, quintet);
-    //printQuintet(quintet);
     oneIpPack.src_addr(tunIp_);
     write_tun(oneIpPack);
 }
@@ -288,7 +289,7 @@ void VpnServer::DNAT(const Tins::IP &IpPack)
 
     oneIpPack.dst_addr(dstIpPort.first);
 
-    modPort(oneIpPack, dstIpPort.second, 1);
+    modPort(oneIpPack, dstIpPort.second, MOD_SRC);
 
     std::vector<uint8_t> serV = oneIpPack.serialize();
 

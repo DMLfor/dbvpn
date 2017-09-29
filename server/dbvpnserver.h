@@ -9,7 +9,8 @@
 #define IF_NAME_SIZE 16
 #define BUFF_SIZE 2048         //must >= pack size
 #define EPOLL_SIZE 16
-
+#define MOD_SRC 1
+#define MOD_DST 0
 #include <string>
 #include <sys/epoll.h>
 #include <netinet/in.h>
@@ -112,6 +113,8 @@ private:
         std::cout << "src : " << quintet.srcIp.to_string() << ":" << quintet.srcPort << " -> "
                   << quintet.dstIP.to_string() << ":" << quintet.dstPort << std::endl;
     }
+
+    bool get_ip_pack(const uint8_t *buf, int n, Tins::IP &pack);
 
     void modPort(Tins::IP &pack, uint16_t value, int type);
 
