@@ -23,7 +23,6 @@
 #include <sys/ioctl.h>
 #include <iostream>
 #include <tins/tins.h>
-
 using namespace Tins;
 
 TunDev::TunDev(const char *vpnIp, const char *vpnPort):

@@ -20,6 +20,5 @@ int main(int argv, char *argc[])
     {
         printf("Input IP Port!\n");
     }
-    while (1);
     return 0;
 }
