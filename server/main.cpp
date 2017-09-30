@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
                 portRange.first = num, num = 0;
         }
         portRange.second = num;
-        if(!(portRange.first > 1024 && portRange.first < 65536 || portRange.second > 1024 && portRange.second < 65536))
+        if(!(portRange.first > 1024 && portRange.first < 65536 && portRange.second > 1024 && portRange.second < 65536 && portRange.first > portRange.second))
         {
             usage();
         }
