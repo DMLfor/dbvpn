@@ -38,7 +38,7 @@ private:
             used = false;
             lastTime = time(nullptr);
         }
-        bool operator < (const struct Port_t & rhs) const
+        bool operator < (const Port_t &rhs) const
         {
             return lastTime < rhs.lastTime;
         }
@@ -94,15 +94,15 @@ private:
 
     void epoll_add(int fd, int status);
 
-    void SNAT(const Tins::IP &IpPack, const struct sockaddr_in &clientAddr);
+    void send_to_net(const Tins::IP &IpPack, const struct sockaddr_in &clientAddr);
 
-    void DNAT(const Tins::IP &IpPack);
+    void send_to_client(const Tins::IP &IpPack);
 
     void write_tun(Tins::PDU &ip);
 
     void get_quintet(const Tins::IP &IpPack, Quintet &quintet);
 
-    void printQuintet(const Quintet &quintet)
+    void print_quintet(const Quintet &quintet)
     {
         if (quintet.protocol == IPPROTO_TCP)
             std::cout << "TCP :";
@@ -116,7 +116,7 @@ private:
 
     bool get_ip_pack(const uint8_t *buf, int n, Tins::IP &pack);
 
-    void modPort(Tins::IP &pack, uint16_t value, int type);
+    void mod_port(Tins::IP &pack, uint16_t value, int type);
 
 public:
 
@@ -124,7 +124,7 @@ public:
 
     void start();
 
-    std::string getTunNanme() const
+    std::string get_tun_name() const
     {
         return tunName_;
     }
